@@ -17,7 +17,7 @@ def get_bonus(total, limit):
 
 
 # 获取额度和超额费用
-def get_limit_and_bonus(raw, base, total):
+def get_limit_and_bonus(raw, raw_limit, base, total):
     limit = 0
     bonus = 0
     if raw == 36 and total < 60:
@@ -25,19 +25,29 @@ def get_limit_and_bonus(raw, base, total):
         bonus = 0
     elif raw == 36 and base >= 60:
         limit = 63
+        if raw_limit > limit:
+            limit = raw_limit
         bonus = get_bonus(total, limit)
     elif raw == 60 and base == 60:
         limit = 60
+        if raw_limit > limit:
+            limit = raw_limit
         bonus = get_bonus(total, limit)
     elif raw == 60 and 60 < base <= 70:
         limit = 87
+        if raw_limit > limit:
+            limit = raw_limit
         bonus = get_bonus(total, limit)
     elif raw == 60 and base > 70:
         limit = 90
+        if raw_limit > limit:
+            limit = raw_limit
         bonus = get_bonus(total, limit)
     elif raw > 60:
         limit = base
-        bonus = get_bonus(total, raw)
+        if raw_limit > limit:
+            limit = raw_limit
+        bonus = get_bonus(total, limit)
     return limit, bonus
 
 
@@ -75,7 +85,7 @@ def read_excel():
     print('正在计算...')
     # 循环A表
     A_row = 0
-    for cellC, cellD in zip(sheetA['C'], sheetA['D']):
+    for cellC, cellD, cellE in zip(sheetA['C'], sheetA['D'], sheetA['E']):
         if cellC and A_row != 0:
             # 判断是否为空
             if cellC.value is None:
@@ -85,12 +95,24 @@ def read_excel():
                 find_B_row = find_keyword_in_sheet(sheetB, cellC.value)
                 if find_B_row:
                     raw = cellD.value  # 套餐费
+                    raw_limit = int(cellE.value) if str(cellE.value).isdigit() else 0
                     number = str(sheetB['C'][find_B_row].value)  # 电话号码
+                    if number == '18112360021':
+                        a = '12'
                     base = sheetB['D'][find_B_row].value  # 基本
                     total = round(sheetB['O'][find_B_row].value, 2)  # 总费用
-                    limit, bonus = get_limit_and_bonus(raw, base, total)
+                    limit, bonus = get_limit_and_bonus(raw, raw_limit, base, total)
                     # sheetA['E'][A_row].value = raw                  # 额度
-                    sheetA['F'][A_row].value = raw + bonus  # 月总费用
+                    if raw >= 100 and raw_limit != 0:
+                        if raw < total < raw_limit:
+                            sheetA['F'][A_row].value = total
+                        else:
+                            sheetA['F'][A_row].value = raw_limit + bonus  # 月总费用
+                    else:
+                        if raw < total < raw_limit:
+                            sheetA['F'][A_row].value = total
+                        else:
+                            sheetA['F'][A_row].value = raw + bonus  # 月总费用
                     sheetA['G'][A_row].value = bonus  # 超额费用
                     # print(A_row, end='-->')
                     # print(limit, bonus)
@@ -115,5 +137,5 @@ if __name__ == '__main__':
     except PermissionError as e:
         print('Excel文件被占用了，要先关掉才行')
     except Exception as e:
-        print('没有找到文件,需要将扣款和话单文件放在一起')
+        print('没有找到文件,需要将‘扣款’和‘话单’文件放在一起')
     os.system('pause')
